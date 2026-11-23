@@ -1,0 +1,50 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Razón de cambio con derivadas</title><style>
+:root{--ink:#18263d;--muted:#61718a;--blue:#3157a4;--teal:#168b83;--orange:#d97706;--line:#dce4ef;--bg:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,Segoe UI,Arial,sans-serif}
+header{background:linear-gradient(120deg,#172b52,#3157a4);color:white;padding:32px 20px}
+.wrap{max-width:1080px;margin:auto;padding:0 18px}h1{font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin:8px 0}header p{color:#e4ecff;max-width:800px}.tag{font-size:.76rem;text-transform:uppercase;letter-spacing:.14em;color:#c5d8ff;font-weight:700}
+main{padding:18px 0 40px}.intro,.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:20px 0}
+.card{background:white;border:1px solid var(--line);border-radius:15px;padding:16px;cursor:pointer;box-shadow:0 5px 18px #19345608}.card.selected{border:2px solid var(--teal);background:#f0faf9}.card h3{margin:2px 0 6px;font-size:1.03rem}.card p{margin:0;color:var(--muted);font-size:.91rem}
+.layout{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(320px,1.4fr);gap:16px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0}.panel h2,.panel h3{margin-top:0}
+.control{margin:17px 0}.control label{font-weight:650;font-size:.91rem;display:block}.value{float:right;color:var(--teal);font-variant-numeric:tabular-nums}.control input{width:100%;accent-color:var(--teal)}
+canvas{width:100%;height:310px;display:block;background:#fbfcff;border:1px solid #e4eaf3;border-radius:10px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-top:12px}.metric{background:#f0f4fa;padding:11px;border-radius:10px}.metric small{display:block;color:var(--muted)}.metric strong{font-size:1.05rem}
+.explain{margin-top:13px;padding:13px 15px;background:#eef8f7;border-left:4px solid var(--teal);border-radius:8px}.formula{font-family:Cambria,Georgia,serif;font-size:1.08rem}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:.88rem}
+@media(max-width:760px){.layout{grid-template-columns:1fr}canvas{height:260px}}
+</style></head>
+<body><header><div class="wrap"><div class="tag">Laboratorio de cálculo diferencial · Aplicación interactiva</div><h1>Razón de cambio con derivadas</h1><p>Tres fenómenos dinámicos donde la derivada mide la rapidez con la que cambia una cantidad.</p></div></header>
+<main class="wrap"><h2>Explora razones de cambio instantáneas</h2><p class="intro">Selecciona una situación y mueve los controles. La gráfica, los resultados y la interpretación se actualizan automáticamente.</p>
+<div class="cards" id="cards"></div><div id="workspace"></div></main><footer>Aplicación educativa · Cálculo diferencial</footer>
+<script>
+const examples = [
+{title:'1. Tanque cónico que se llena',desc:'Calcular qué tan rápido sube el nivel del agua.',params:[{id:'r',label:'Radio superior del cono (m)',value:2,min:.5,max:5,step:.1},{id:'H',label:'Altura del cono (m)',value:4,min:1,max:10,step:.2},{id:'Q',label:'Flujo de entrada (m³/min)',value:.3,min:.05,max:1,step:.01},{id:'h',label:'Altura actual del agua (m)',value:2,min:.2,max:4,step:.1}],calc:p=>{let h=Math.min(p.h,p.H*.98),k=p.r/p.H,dh=p.Q/(Math.PI*k*k*h*h),fn=z=>p.Q/(Math.PI*k*k*z*z);return {fn,domain:[Math.max(.2,p.H*.04),p.H],point:{x:h,y:dh},metrics:[['Radio del agua',fmt(k*h)+' m'],['Altura actual',fmt(h)+' m'],['Aumento del nivel',fmt(dh)+' m/min']],formula:'V=(1/3)πr²h y r/h=R/H. Al derivar: dV/dt=π(R/H)²h²(dh/dt).',note:'Cuando el tanque está más lleno, el radio del agua es mayor y el nivel suele subir más lentamente para el mismo flujo.'}}},
+{title:'2. Sombra de una persona',desc:'Rapidez con la que se mueve la punta de la sombra.',params:[{id:'H',label:'Altura de la lámpara (m)',value:6,min:3,max:12,step:.5},{id:'h',label:'Altura de la persona (m)',value:1.7,min:1,max:2.2,step:.1},{id:'v',label:'Velocidad al caminar (m/s)',value:1.2,min:.2,max:3,step:.1},{id:'x',label:'Distancia a la lámpara (m)',value:4,min:.5,max:12,step:.2}],calc:p=>{let rate=p.h*p.v/(p.H-p.h),fn=z=>p.h*p.v/(p.H-p.h);return {fn,domain:[0,12],point:{x:p.x,y:rate},metrics:[['Rapidez de la punta',fmt(rate)+' m/s'],['Rapidez de la persona',fmt(p.v)+' m/s'],['Longitud de sombra',fmt(p.h*p.x/(p.H-p.h))+' m']],formula:'Por triángulos semejantes, s=h·x/(H−h). Entonces ds/dt=[h/(H−h)]·dx/dt.',note:'La punta de la sombra se desplaza más rápido que la persona porque la lámpara está a una altura mayor que la persona.'}}},
+{title:'3. Ley de enfriamiento',desc:'Medir la rapidez con la que cambia la temperatura.',params:[{id:'Ta',label:'Temperatura ambiente (°C)',value:22,min:5,max:35,step:1},{id:'T0',label:'Temperatura inicial (°C)',value:90,min:40,max:120,step:1},{id:'k',label:'Constante de enfriamiento',value:.2,min:.03,max:.6,step:.01},{id:'t',label:'Tiempo transcurrido (min)',value:3,min:0,max:15,step:.2}],calc:p=>{let f=z=>p.Ta+(p.T0-p.Ta)*Math.exp(-p.k*z),d=z=>-p.k*(p.T0-p.Ta)*Math.exp(-p.k*z);return {fn:f,domain:[0,15],point:{x:p.t,y:f(p.t)},tangent:z=>f(p.t)+d(p.t)*(z-p.t),metrics:[['Temperatura actual',fmt(f(p.t))+' °C'],['Razón instantánea',fmt(d(p.t))+' °C/min'],['Temperatura ambiente',fmt(p.Ta)+' °C']],formula:'T(t)=Tₐ+(T₀−Tₐ)e^(−kt); T′(t)=−k(T₀−Tₐ)e^(−kt).',note:'La razón es negativa: el objeto se enfría. Conforme se acerca a la temperatura ambiente, el enfriamiento se vuelve más lento.'}}}
+];
+let selected=0;
+const fmt=n=>Number(n).toFixed(3);
+function buildCards(){const box=document.getElementById('cards');box.innerHTML='';examples.forEach((e,i)=>{const d=document.createElement('div');d.className='card '+(i===selected?'selected':'');d.innerHTML='<h3>'+e.title+'</h3><p>'+e.desc+'</p>';d.onclick=()=>{selected=i;render()};box.appendChild(d)})}
+function render(){buildCards();const e=examples[selected],p={};e.params.forEach(a=>p[a.id]=a.value);
+const host=document.getElementById('workspace');host.innerHTML='<div class="layout"><section class="panel"><h3>Parámetros modificables</h3><div id="controls"></div><div class="explain"><b>Modelo matemático</b><div class="formula" id="formula"></div></div></section><section class="panel"><h3>Representación gráfica</h3><canvas id="graph" width="900" height="470"></canvas><div class="metrics" id="metrics"></div><div class="explain" id="interpretation"></div><div class="explain" style="background:#fff8ed;border-left-color:#d97706"><b>Interpretación de los resultados</b><p id="result-reading" style="margin:7px 0 0"></p></div></section></div>';
+const controls=host.querySelector('#controls');
+e.params.forEach(a=>{let d=document.createElement('div');d.className='control';d.innerHTML='<label>'+a.label+' <span class="value">'+a.value+'</span></label><input type="range" min="'+a.min+'" max="'+a.max+'" step="'+a.step+'" value="'+a.value+'">';let input=d.querySelector('input');input.oninput=()=>{p[a.id]=Number(input.value);d.querySelector('.value').textContent=input.value;update()};controls.appendChild(d)});
+function update(){let r=e.calc(p);host.querySelector('#formula').textContent=r.formula;host.querySelector('#metrics').innerHTML=r.metrics.map(m=>'<div class="metric"><small>'+m[0]+'</small><strong>'+m[1]+'</strong></div>').join('');host.querySelector('#interpretation').textContent=r.note;
+let reading='Con los parámetros seleccionados, ';
+if(r.metrics.length>=3){reading+=r.metrics[0][0].toLowerCase()+' es '+r.metrics[0][1]+', '+r.metrics[1][0].toLowerCase()+' es '+r.metrics[1][1]+' y '+r.metrics[2][0].toLowerCase()+' es '+r.metrics[2][1]+'. ';}
+reading+=r.note;
+host.querySelector('#result-reading').textContent=reading;
+draw(host.querySelector('canvas'),r)}update()}
+function draw(c,r){let ctx=c.getContext('2d'),w=c.width,h=c.height,L=65,R=20,T=26,B=42,pw=w-L-R,ph=h-T-B,[xmin,xmax]=r.domain,vals=[];
+for(let i=0;i<=300;i++){let x=xmin+(xmax-xmin)*i/300;[r.fn,r.line].forEach(f=>{if(f){let y=f(x);if(Number.isFinite(y)&&Math.abs(y)<1e7)vals.push(y)}})}
+let ymin=Math.min(0,...vals),ymax=Math.max(0,...vals);if(!Number.isFinite(ymin)||!Number.isFinite(ymax)){ymin=-1;ymax=1}if(ymax-ymin<.001){ymin-=1;ymax+=1}let pad=(ymax-ymin)*.12;ymin-=pad;ymax+=pad;
+let X=x=>L+(x-xmin)/(xmax-xmin)*pw,Y=y=>T+(ymax-y)/(ymax-ymin)*ph;ctx.clearRect(0,0,w,h);ctx.font='14px system-ui';ctx.strokeStyle='#e5eaf2';ctx.fillStyle='#65748a';
+for(let i=0;i<=5;i++){let x=xmin+(xmax-xmin)*i/5,px=X(x),y=ymin+(ymax-ymin)*i/5,py=Y(y);ctx.beginPath();ctx.moveTo(px,T);ctx.lineTo(px,T+ph);ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.fillText(x.toFixed(1),px-12,h-13);ctx.fillText(y.toFixed(1),4,py+4)}
+ctx.strokeStyle='#64748b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(L,Y(0));ctx.lineTo(w-R,Y(0));if(xmin<=0&&xmax>=0){ctx.moveTo(X(0),T);ctx.lineTo(X(0),T+ph)}ctx.stroke();
+function curve(fn,color,width,dash=[]){ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);let started=false;for(let i=0;i<=500;i++){let x=xmin+(xmax-xmin)*i/500,y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>1e7){started=false;continue}if(!started){ctx.moveTo(X(x),Y(y));started=true}else ctx.lineTo(X(x),Y(y))}ctx.stroke();ctx.setLineDash([])}
+curve(r.fn,'#3157a4',4);if(r.line)curve(r.line,'#168b83',3,[9,6]);if(r.tangent)curve(r.tangent,'#d97706',2,[5,5]);
+if(r.point){ctx.fillStyle='#d97706';ctx.beginPath();ctx.arc(X(r.point.x),Y(r.point.y),7,0,Math.PI*2);ctx.fill()}
+ctx.fillStyle='#3157a4';ctx.fillText('Función',L+8,T+17);if(r.line){ctx.fillStyle='#168b83';ctx.fillText('Comparación / aproximación',L+100,T+17)}if(r.tangent){ctx.fillStyle='#d97706';ctx.fillText('Tangente',L+300,T+17)}
+}
+render();
+</script></body></html>

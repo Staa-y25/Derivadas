@@ -1,0 +1,50 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Optimización con derivadas</title><style>
+:root{--ink:#18263d;--muted:#61718a;--blue:#3157a4;--teal:#168b83;--orange:#d97706;--line:#dce4ef;--bg:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,Segoe UI,Arial,sans-serif}
+header{background:linear-gradient(120deg,#172b52,#3157a4);color:white;padding:32px 20px}
+.wrap{max-width:1080px;margin:auto;padding:0 18px}h1{font-size:clamp(2rem,4vw,3rem);line-height:1.1;margin:8px 0}header p{color:#e4ecff;max-width:800px}.tag{font-size:.76rem;text-transform:uppercase;letter-spacing:.14em;color:#c5d8ff;font-weight:700}
+main{padding:18px 0 40px}.intro,.muted{color:var(--muted)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:20px 0}
+.card{background:white;border:1px solid var(--line);border-radius:15px;padding:16px;cursor:pointer;box-shadow:0 5px 18px #19345608}.card.selected{border:2px solid var(--teal);background:#f0faf9}.card h3{margin:2px 0 6px;font-size:1.03rem}.card p{margin:0;color:var(--muted);font-size:.91rem}
+.layout{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(320px,1.4fr);gap:16px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0}.panel h2,.panel h3{margin-top:0}
+.control{margin:17px 0}.control label{font-weight:650;font-size:.91rem;display:block}.value{float:right;color:var(--teal);font-variant-numeric:tabular-nums}.control input{width:100%;accent-color:var(--teal)}
+canvas{width:100%;height:310px;display:block;background:#fbfcff;border:1px solid #e4eaf3;border-radius:10px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-top:12px}.metric{background:#f0f4fa;padding:11px;border-radius:10px}.metric small{display:block;color:var(--muted)}.metric strong{font-size:1.05rem}
+.explain{margin-top:13px;padding:13px 15px;background:#eef8f7;border-left:4px solid var(--teal);border-radius:8px}.formula{font-family:Cambria,Georgia,serif;font-size:1.08rem}
+footer{text-align:center;padding:20px;color:var(--muted);font-size:.88rem}
+@media(max-width:760px){.layout{grid-template-columns:1fr}canvas{height:260px}}
+</style></head>
+<body><header><div class="wrap"><div class="tag">Laboratorio de cálculo diferencial · Aplicación interactiva</div><h1>Optimización con derivadas</h1><p>Tres problemas distintos para encontrar máximos o mínimos y analizar cómo cambian al modificar sus parámetros.</p></div></header>
+<main class="wrap"><h2>Explora máximos y mínimos</h2><p class="intro">Selecciona una situación y mueve los controles. La gráfica, los resultados y la interpretación se actualizan automáticamente.</p>
+<div class="cards" id="cards"></div><div id="workspace"></div></main><footer>Aplicación educativa · Cálculo diferencial</footer>
+<script>
+const examples = [
+{title:'1. Cerca junto a un río',desc:'Maximizar el área usando cerca en solo tres lados.',params:[{id:'P',label:'Longitud de cerca disponible (m)',value:60,min:20,max:120,step:2}],calc:p=>{let x=p.P/4,fn=z=>z*(p.P-2*z)/2;return {fn,domain:[0,p.P/2],point:{x,y:fn(x)},metrics:[['Ancho óptimo',fmt(x)+' m'],['Largo óptimo',fmt(p.P-2*x)+' m'],['Área máxima',fmt(fn(x))+' m²']],formula:'A(x)=x(P−2x)/2;  A′(x)=P/2−2x. El máximo ocurre en x=P/4.',note:'Como uno de los lados aprovecha el río, solo se cercan tres lados. La parábola muestra que existe un área máxima.'}}},
+{title:'2. Diseño de un cartel',desc:'Elegir dimensiones para maximizar el área impresa dentro de márgenes.',params:[{id:'W',label:'Ancho total del cartel (cm)',value:40,min:20,max:80,step:1},{id:'m',label:'Margen lateral y vertical (cm)',value:3,min:1,max:8,step:.5}],calc:p=>{let x=(p.W-2*p.m)/2,fn=z=>(p.W-2*p.m-2*z)*(2*z);return {fn,domain:[0,Math.max(1,(p.W-2*p.m)/2)],point:{x,y:fn(x)},metrics:[['Margen óptimo superior/inferior',fmt(x)+' cm'],['Área impresa máxima',fmt(fn(x))+' cm²'],['Ancho imprimible',fmt(p.W-2*p.m)+' cm']],formula:'A(x)=(W−2m−2x)(2x). Se deriva y se iguala A′(x)=0.',note:'El modelo simplifica el diseño suponiendo que los márgenes laterales ya están fijados. El valor óptimo equilibra el espacio vertical restante.'}}},
+{title:'3. Cilindro de volumen fijo',desc:'Minimizar el área de material para fabricar un cilindro cerrado.',params:[{id:'V',label:'Volumen requerido (cm³)',value:1000,min:200,max:3000,step:50}],calc:p=>{let r=Math.cbrt(p.V/(2*Math.PI)),fn=z=>2*Math.PI*z*z+2*p.V/z;return {fn,domain:[Math.max(.5,r*.25),r*3],point:{x:r,y:fn(r)},metrics:[['Radio óptimo',fmt(r)+' cm'],['Altura óptima',fmt(p.V/(Math.PI*r*r))+' cm'],['Área mínima',fmt(fn(r))+' cm²']],formula:'A(r)=2πr²+2V/r. La condición A′(r)=0 produce h=2r.',note:'Para un volumen fijo, el cilindro cerrado usa menos material cuando su altura es igual al diámetro.'}}}
+];
+let selected=0;
+const fmt=n=>Number(n).toFixed(3);
+function buildCards(){const box=document.getElementById('cards');box.innerHTML='';examples.forEach((e,i)=>{const d=document.createElement('div');d.className='card '+(i===selected?'selected':'');d.innerHTML='<h3>'+e.title+'</h3><p>'+e.desc+'</p>';d.onclick=()=>{selected=i;render()};box.appendChild(d)})}
+function render(){buildCards();const e=examples[selected],p={};e.params.forEach(a=>p[a.id]=a.value);
+const host=document.getElementById('workspace');host.innerHTML='<div class="layout"><section class="panel"><h3>Parámetros modificables</h3><div id="controls"></div><div class="explain"><b>Modelo matemático</b><div class="formula" id="formula"></div></div></section><section class="panel"><h3>Representación gráfica</h3><canvas id="graph" width="900" height="470"></canvas><div class="metrics" id="metrics"></div><div class="explain" id="interpretation"></div><div class="explain" style="background:#fff8ed;border-left-color:#d97706"><b>Interpretación de los resultados</b><p id="result-reading" style="margin:7px 0 0"></p></div></section></div>';
+const controls=host.querySelector('#controls');
+e.params.forEach(a=>{let d=document.createElement('div');d.className='control';d.innerHTML='<label>'+a.label+' <span class="value">'+a.value+'</span></label><input type="range" min="'+a.min+'" max="'+a.max+'" step="'+a.step+'" value="'+a.value+'">';let input=d.querySelector('input');input.oninput=()=>{p[a.id]=Number(input.value);d.querySelector('.value').textContent=input.value;update()};controls.appendChild(d)});
+function update(){let r=e.calc(p);host.querySelector('#formula').textContent=r.formula;host.querySelector('#metrics').innerHTML=r.metrics.map(m=>'<div class="metric"><small>'+m[0]+'</small><strong>'+m[1]+'</strong></div>').join('');host.querySelector('#interpretation').textContent=r.note;
+let reading='Con los parámetros seleccionados, ';
+if(r.metrics.length>=3){reading+=r.metrics[0][0].toLowerCase()+' es '+r.metrics[0][1]+', '+r.metrics[1][0].toLowerCase()+' es '+r.metrics[1][1]+' y '+r.metrics[2][0].toLowerCase()+' es '+r.metrics[2][1]+'. ';}
+reading+=r.note;
+host.querySelector('#result-reading').textContent=reading;
+draw(host.querySelector('canvas'),r)}update()}
+function draw(c,r){let ctx=c.getContext('2d'),w=c.width,h=c.height,L=65,R=20,T=26,B=42,pw=w-L-R,ph=h-T-B,[xmin,xmax]=r.domain,vals=[];
+for(let i=0;i<=300;i++){let x=xmin+(xmax-xmin)*i/300;[r.fn,r.line].forEach(f=>{if(f){let y=f(x);if(Number.isFinite(y)&&Math.abs(y)<1e7)vals.push(y)}})}
+let ymin=Math.min(0,...vals),ymax=Math.max(0,...vals);if(!Number.isFinite(ymin)||!Number.isFinite(ymax)){ymin=-1;ymax=1}if(ymax-ymin<.001){ymin-=1;ymax+=1}let pad=(ymax-ymin)*.12;ymin-=pad;ymax+=pad;
+let X=x=>L+(x-xmin)/(xmax-xmin)*pw,Y=y=>T+(ymax-y)/(ymax-ymin)*ph;ctx.clearRect(0,0,w,h);ctx.font='14px system-ui';ctx.strokeStyle='#e5eaf2';ctx.fillStyle='#65748a';
+for(let i=0;i<=5;i++){let x=xmin+(xmax-xmin)*i/5,px=X(x),y=ymin+(ymax-ymin)*i/5,py=Y(y);ctx.beginPath();ctx.moveTo(px,T);ctx.lineTo(px,T+ph);ctx.moveTo(L,py);ctx.lineTo(w-R,py);ctx.stroke();ctx.fillText(x.toFixed(1),px-12,h-13);ctx.fillText(y.toFixed(1),4,py+4)}
+ctx.strokeStyle='#64748b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(L,Y(0));ctx.lineTo(w-R,Y(0));if(xmin<=0&&xmax>=0){ctx.moveTo(X(0),T);ctx.lineTo(X(0),T+ph)}ctx.stroke();
+function curve(fn,color,width,dash=[]){ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);let started=false;for(let i=0;i<=500;i++){let x=xmin+(xmax-xmin)*i/500,y=fn(x);if(!Number.isFinite(y)||Math.abs(y)>1e7){started=false;continue}if(!started){ctx.moveTo(X(x),Y(y));started=true}else ctx.lineTo(X(x),Y(y))}ctx.stroke();ctx.setLineDash([])}
+curve(r.fn,'#3157a4',4);if(r.line)curve(r.line,'#168b83',3,[9,6]);if(r.tangent)curve(r.tangent,'#d97706',2,[5,5]);
+if(r.point){ctx.fillStyle='#d97706';ctx.beginPath();ctx.arc(X(r.point.x),Y(r.point.y),7,0,Math.PI*2);ctx.fill()}
+ctx.fillStyle='#3157a4';ctx.fillText('Función',L+8,T+17);if(r.line){ctx.fillStyle='#168b83';ctx.fillText('Comparación / aproximación',L+100,T+17)}if(r.tangent){ctx.fillStyle='#d97706';ctx.fillText('Tangente',L+300,T+17)}
+}
+render();
+</script></body></html>
